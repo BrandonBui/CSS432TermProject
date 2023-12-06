@@ -32,8 +32,8 @@ void playBlackJack(int clientSd){
     while (!donePlaying){
         message = "";
         message += networkingAPI::receiveMessage(clientSd);
-        cout << "Message was: ";
-        cout << message << endl;
+        //cout << "Message was: ";
+        //cout << message << endl;
         if (message == "You Busted"){
             donePlaying = true;
         } else {
@@ -52,9 +52,12 @@ void playBlackJack(int clientSd){
             }
             networkingAPI::sendHitOrStand(clientSd, input);
 
-            message = "";
-            message += networkingAPI::receiveMessage(clientSd);
-            cout << message << endl;
+            if (input == "h"){
+                message = "";
+                message += networkingAPI::receiveMessage(clientSd);
+                cout << message << endl;
+            }
+            
         }
     }
 

@@ -31,7 +31,7 @@ void networkingAPI::sendHitOrStand(int sd, string input){
 string networkingAPI::receiveHitOrStand(int sd){
     string message = "";
     char databuf[2];
-    read(sd, &databuf, 1000);
+    read(sd, &databuf, 2);
     databuf[1] = '\0';
     message += databuf;
     cout << "Message received: " + message << endl;
