@@ -8,8 +8,62 @@
 #include <strings.h>     // bzero
 #include <netinet/tcp.h>  // SO_REUSEADDR
 #include <sys/uio.h>      // writev
+#include <string>
+#include "networkingAPI.h"
 
 using namespace std;
+
+
+void playBlackJack(int clientSd){
+    bool donePlaying = false;
+    string message = "";
+    string input = "";
+    message += networkingAPI::receiveMessage(clientSd);
+    cout << message << endl;
+
+    networkingAPI::sendMessage(clientSd, "buffer"); //this is a buffer message
+
+    message = "";
+    message += networkingAPI::receiveMessage(clientSd);
+    cout << message << endl;
+
+    networkingAPI::sendMessage(clientSd, "buffer"); //this is a buffer message
+
+    while (!donePlaying){
+        message = "";
+        message += networkingAPI::receiveMessage(clientSd);
+        cout << "Message was: ";
+        cout << message << endl;
+        if (message == "You Busted"){
+            donePlaying = true;
+        } else {
+            cout << "Hit or Stand? Type 'h' for Hit or 's' for Stand" << endl;
+            bool properInput = false;
+            while (!properInput){
+                cin >> input;
+                if (input == "h"){
+                    properInput = true;
+                } else if (input == "s"){
+                    properInput = true;
+                    donePlaying = true;
+                } else {
+                    cout << "Please input 'h' for Hit or 's' for Stand" << endl;
+                }
+            }
+            networkingAPI::sendHitOrStand(clientSd, input);
+
+            message = "";
+            message += networkingAPI::receiveMessage(clientSd);
+            cout << message << endl;
+        }
+    }
+
+    message = "";
+    message += networkingAPI::receiveMessage(clientSd);  //(this is to see if you won or lost)
+
+    cout << message << endl;
+
+}
 
 int main(int argc, char *argv[]) {
 
