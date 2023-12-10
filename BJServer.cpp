@@ -10,56 +10,16 @@
 #include <netinet/tcp.h>  // SO_REUSEADDR
 #include <sys/uio.h>      // writev
 #include <cstdlib>
-#include "networkingAPI.h"
 #include <vector>
 #include <algorithm>
 #include <array>
 #include <ctime>
 #include <random>
 #include <cassert>
+#include "lobby.h"
+#include "networkingAPI.h"
 
 using namespace std;
-
-int USERS_CONNECTED = 0;
-
-/**
- * Struct to pass arguments through to the readClient function which is called
- * by the thread thus is limited arguments.
- */
-struct thread_args {
-    int sd;
-};
-
-/**
- * readClient(int sd)
- * 
- * readClient measures the time it takes for the server to read all messages
- * coming from the client. General flow of the function is as follows:
- *  1) Get current time - this is the start time
- *  2) Read incoming msg and track how many times read needed to be called
- *  3) Get current time - this is the end time
- *  4) Calculate elapsed time
- *  5) Sends message to client 
- *  6) Displays elapsed time
-*/
-// void* readClient(void* voidArgs) {
-    
-//     char databuf[1500];
-//     struct thread_args *args = (thread_args*) voidArgs;
-
-//     read(args->sd, databuf, 1500);
-//      cout << args->sd << endl;
-//     //Send count to client
-//     char temp[1500] = "welcome";
-//     strcpy(databuf, temp);
-//     write(args->sd, databuf, sizeof(databuf));
-   
-//     while (1) {
-//     }
-//     //close(args->sd);
-
-//     return NULL;
-// }
 
 enum class CardRank{
     rank_2,
@@ -248,6 +208,69 @@ void playBlackjack(const Deck& deck, vector<int>& playerList)
 }
 
 /**
+ * Struct to pass arguments through to the readClient function which is called
+ * by the thread thus is limited arguments.
+ */
+struct thread_args {
+    int sd;
+};
+
+/**
+ * readClient(int sd)
+ * 
+ * readClient measures the time it takes for the server to read all messages
+ * coming from the client. General flow of the function is as follows:
+ *  1) Get current time - this is the start time
+ *  2) Read incoming msg and track how many times read needed to be called
+ *  3) Get current time - this is the end time
+ *  4) Calculate elapsed time
+ *  5) Sends message to client 
+ *  6) Displays elapsed time
+*/
+// void* readClient(void* voidArgs) {
+    
+//     char databuf[1500];
+//     struct thread_args *args = (thread_args*) voidArgs;
+
+//     read(args->sd, databuf, 1500);
+//      cout << args->sd << endl;
+//     //Send count to client
+//     char temp[1500] = "welcome";
+//     strcpy(databuf, temp);
+//     write(args->sd, databuf, sizeof(databuf));
+   
+//     while (1) {
+//     }
+//     //close(args->sd);
+
+//     return NULL;
+// }
+
+struct udp_thread_args {
+    LobbyManager* lobbyMgr;
+};
+
+void* udpMessageManager(void* threadArgs) {
+    struct udp_thread_args *args = (udp_thread_args*) threadArgs;
+
+    while (1) {
+        // Constantly check for incoming UDP messages
+        
+        //If client wants to create a lobby
+        if (true) {
+            int lobbyID = args->lobbyMgr->CreateLobby();
+            //send lobbyID to player
+
+        //If client wants to display all lobbies
+        } else if (true) {
+            string lobbyInfo = args->lobbyMgr->PrintLobbyInfo();
+            //send lobby info to player
+        }
+    }
+}
+
+
+/**
  * int main (int argc, char *argv[])
  * 
  * Main driver of the program. The function creates the socket and listens for
@@ -288,26 +311,45 @@ int main (int argc, char *argv[]) {
     socklen_t newsockSize = sizeof(newsock);
  
     vector<int> playerList;
+    //Initializes the lobby manager and creates 1 lobby
+    LobbyManager lobbyMgr(1);
+
+    //Create struct to store arguments needed inside udp thread
+    pthread_t udp_thread;
+    struct udp_thread_args *udpArgs = new udp_thread_args;
+
+    //Store a reference to the lobby manager initialized above
+    udpArgs->lobbyMgr = &lobbyMgr;
+
+    //Creates thread to manage any udp messages
+    pthread_create(&udp_thread, NULL, udpMessageManager, (void*) udpArgs);
+
     while (1) {
-	    int newSd = accept(serverSd, (sockaddr *)&newsock, &newsockSize);  // grabs the new connection and assigns it a temporary socket
+	    //Listens for incoming player connections
+        int newSd = accept(serverSd, (sockaddr *)&newsock, &newsockSize);  // grabs the new connection and assigns it a temporary socket
         
+        //Lobby management stuff
+        //Listens for incoming UDP messages to list, create, or join lobbies
+        if (true) {
+            
+        }
         //Creates thread and thread_arg struct
         //pthread_t new_thread;
         //struct thread_args *args = new thread_args;
         //args->sd = newSd;
 
-        USERS_CONNECTED++;
-        //pthread_create(&new_thread, NULL, readClient, (void*) args);
+        // USERS_CONNECTED++;
+        // //pthread_create(&new_thread, NULL, readClient, (void*) args);
         
-        //A single lobby -- would need to be 2D eventually
+        // //A single lobby -- would need to be 2D eventually
         
-        playerList.push_back(newSd); //add player to lobby
-        if (USERS_CONNECTED == 2){
-            Deck d = createDeck();
-            shuffleDeck(d);
-            shuffleDeck(d);
-            playBlackjack(d, playerList);
-        }
+        // playerList.push_back(newSd); //add player to lobby
+        // if (USERS_CONNECTED == 2){
+        //     Deck d = createDeck();
+        //     shuffleDeck(d);
+        //     shuffleDeck(d);
+        //     playBlackjack(d, playerList);
+        // }
     }
     return 0;
 
