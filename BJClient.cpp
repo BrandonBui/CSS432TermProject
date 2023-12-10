@@ -13,7 +13,6 @@
 
 using namespace std;
 
-
 void playBlackJack(int clientSd){
     bool donePlaying = false;
     string message = "";

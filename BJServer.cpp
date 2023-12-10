@@ -287,22 +287,22 @@ int main (int argc, char *argv[]) {
     sockaddr_in newsock;   // place to store parameters for the new connection
     socklen_t newsockSize = sizeof(newsock);
  
+    vector<int> playerList;
     while (1) {
 	    int newSd = accept(serverSd, (sockaddr *)&newsock, &newsockSize);  // grabs the new connection and assigns it a temporary socket
         
         //Creates thread and thread_arg struct
-        pthread_t new_thread;
-        struct thread_args *args = new thread_args;
-        args->sd = newSd;
+        //pthread_t new_thread;
+        //struct thread_args *args = new thread_args;
+        //args->sd = newSd;
 
         USERS_CONNECTED++;
         //pthread_create(&new_thread, NULL, readClient, (void*) args);
         
         //A single lobby -- would need to be 2D eventually
-        vector<int> playerList;
+        
         playerList.push_back(newSd); //add player to lobby
-
-        if (USERS_CONNECTED == 1){
+        if (USERS_CONNECTED == 2){
             Deck d = createDeck();
             shuffleDeck(d);
             shuffleDeck(d);
