@@ -10,7 +10,7 @@ class networkingAPI{
         static string receiveMessage(int sd);
         static void sendHitOrStand(int sd, string input);
         static string receiveHitOrStand(int sd);
-
+        static int connectToServer(int server_port, char* server_name);
     private:
 
 };

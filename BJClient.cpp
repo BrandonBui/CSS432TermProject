@@ -74,29 +74,7 @@ int main(int argc, char *argv[]) {
     char * server_name = argv[2];
     char * lobbyAndName = argv[3];
 
-    //Server IP
-    struct hostent* host = gethostbyname(server_name);
-
-    //Creates socket address and zeroes out data structures
-    sockaddr_in sendSockAddr;
-    bzero((char*) &sendSockAddr, sizeof(sendSockAddr));
-
-    //Assigns address and port
-    sendSockAddr.sin_family = AF_INET;
-    sendSockAddr.sin_addr.s_addr = inet_addr(inet_ntoa(*(struct in_addr*)*host->h_addr_list));
-    sendSockAddr.sin_port = htons(server_port);
-
-    //Creates socket description
-    int clientSd = socket(AF_INET, SOCK_STREAM, 0);
-
-    //Connects socket
-    int connectStatus = connect(clientSd, (sockaddr*)&sendSockAddr, sizeof(sendSockAddr));
-    if (connectStatus < 0) {
-        cerr << "Failed to connect to the server" << endl;
-    } else {
-        cout << "CONNECTED TO SERVER" << endl;
-    }
-
+    int clientSd = networkingAPI::connectToServer(server_port, server_name);
     //write(clientSd, lobbyAndName, sizeof(lobbyAndName));
     networkingAPI::sendMessage(clientSd, lobbyAndName);
 
