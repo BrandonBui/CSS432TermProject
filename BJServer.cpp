@@ -316,26 +316,6 @@ void* tcpGameManager(void*) {
             }
         }
     }
-
-    // struct tcp_thread_args *args = (tcp_thread_args*) threadArgs;
-
-    // while (1) {
-    //     //Check if any lobbies have two players, if there is then start the game       
-    //     cout << args->lobbies[0]->size() << endl;
-    //     for (int i = 0; i < args->lobbies.size(); i++) {
-            
-    //         if (args->lobbies[i]->size() == 2) {
-    //             //create thread
-    //             pthread_t game_thread;
-    //             struct game_thread_args *gameArgs = new game_thread_args;
-
-    //             gameArgs->lobbies = args->lobbies;
-    //             gameArgs->lobbyID = i;
-
-    //             pthread_create(&game_thread, NULL, gameThread, (void*) gameArgs);
-    //         }
-    //     }
-    // }
 }
 
 
@@ -378,22 +358,6 @@ int main (int argc, char *argv[]) {
 
     sockaddr_in newsock;   // place to store parameters for the new connection
     socklen_t newsockSize = sizeof(newsock);
- 
-    //vector<int> playerList;
-
-    //vector<map<int, string>*> lobbies;
-
-    //Initializes the lobby manager and creates 1 lobby
-    //LobbyManager lobbyMgr(1, lobbies);
-   
-    //Create struct to store arguments needed inside udp thread
-    // pthread_t udp_thread;
-    // struct udp_thread_args *udpArgs = new udp_thread_args;
-    // //Store a reference to the lobby manager initialized above
-    // udpArgs->lobbyMgr = &lobbyMgr;
-    // //Creates thread to manage any udp messages
-    // pthread_create(&udp_thread, NULL, udpMessageManager, (void*) udpArgs);
-
     
     pthread_t tcp_thread;
     pthread_create(&tcp_thread, NULL, tcpGameManager, NULL);
@@ -403,22 +367,16 @@ int main (int argc, char *argv[]) {
         //An incoming TCP connection means that a player is intending to join a lobby
         //The player is expected to know which lobby they are joining
         int newSd = accept(serverSd, (sockaddr *)&newsock, &newsockSize);  // grabs the new connection and assigns it a temporary socket
-        
-        char buff[1024]; //initialize it to 1024 bytes
 
-        //Read player's hello message which should consist of their desired lobby number and username
-        //Message will be formatted lobbyNum#username
-        read(newSd, buff, sizeof(buff));
+        string username = networkingAPI::receiveMessage(newSd);
         
-        //Convert the char[] to a string
-        string username(buff);
         cout << username << endl;
         //Make pair w/ SD as one item, and their username
         struct Player* newPlayer = new Player;
         newPlayer->SD = newSd;
         newPlayer->username = username;
         newPlayer->inLobby = false;
-
+        //cout << "test2" << endl;
         ALL_PLAYERS.push_back(newPlayer);
     }
     return 0;

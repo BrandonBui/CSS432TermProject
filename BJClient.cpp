@@ -97,7 +97,8 @@ int main(int argc, char *argv[]) {
         cout << "CONNECTED TO SERVER" << endl;
     }
 
-    write(clientSd, lobbyAndName, sizeof(lobbyAndName));
+    //write(clientSd, lobbyAndName, sizeof(lobbyAndName));
+    networkingAPI::sendMessage(clientSd, lobbyAndName);
 
     while (1) {
         string response;
@@ -105,15 +106,16 @@ int main(int argc, char *argv[]) {
         cout << response << endl;
 
         //Check if message requires response
-        
+        if (response.substr(0, 7) == "CURRENT") {
+            response = "";
+            cin >> response;
+            networkingAPI::sendMessage(clientSd, response);
+        }
 
         if (response == "STARTING GAME") {
             break;
         }
         
-        response = "";
-        cin >> response;
-        networkingAPI::sendMessage(clientSd, response);
     }
 
     playBlackJack(clientSd);
