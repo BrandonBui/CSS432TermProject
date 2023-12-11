@@ -132,10 +132,9 @@ void playBlackjack(const Deck& deck, vector<int>& playerList)
     int nextCardIndex = 0;
     int dealerValue = 0;
     string message = "";
+    // Create the dealer and give them 1 card.
+    dealerValue = getCardValue(deck.at(nextCardIndex++));
     while (currentPlayer < playerList.size()){
-        // Create the dealer and give them 1 card.
-        dealerValue = getCardValue(deck.at(nextCardIndex++));
-
         // The dealer's card is face up, the player can see it.
         cout << "The dealer is showing: " << dealerValue << '\n';
         message += "The dealer is showing: " + to_string(dealerValue);
