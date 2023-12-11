@@ -99,12 +99,22 @@ int main(int argc, char *argv[]) {
 
     write(clientSd, lobbyAndName, sizeof(lobbyAndName));
 
-    // char databuf[1500] = "Hello";
+    while (1) {
+        string response;
+        response = networkingAPI::receiveMessage(clientSd);
+        cout << response << endl;
 
-    // write( clientSd, databuf, bufsize ); 
+        //Check if message requires response
+        
 
-    // read(clientSd, databuf, sizeof(databuf));
-    // cout << databuf << endl;
+        if (response == "STARTING GAME") {
+            break;
+        }
+        
+        response = "";
+        cin >> response;
+        networkingAPI::sendMessage(clientSd, response);
+    }
 
     playBlackJack(clientSd);
 

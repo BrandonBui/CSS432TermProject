@@ -21,6 +21,22 @@
 
 using namespace std;
 
+struct Player {
+    int SD;
+    string username;
+    bool inLobby;
+};
+
+struct Lobby {
+    int LobbyID;
+    bool lobbyFull;
+    bool inGame;
+    vector<Player*> players;
+};
+
+vector<Player*> ALL_PLAYERS = {};
+vector<Lobby*> LOBBIES = {};
+
 enum class CardRank{
     rank_2,
     rank_3,
@@ -207,41 +223,18 @@ void playBlackjack(const Deck& deck, vector<int>& playerList)
     
 }
 
-struct udp_thread_args {
-    LobbyManager* lobbyMgr;
-    vector<map<int, string>*> lobbies;
-};
-
-void* udpMessageManager(void* threadArgs) {
-    struct udp_thread_args *args = (udp_thread_args*) threadArgs;
-
-    while (1) {
-        // Constantly check for incoming UDP messages
-        
-        //If client wants to create a lobby
-        if (true) {
-            int lobbyID = args->lobbyMgr->CreateLobby(args->lobbies);
-            //send lobbyID to player
-
-        //If client wants to display all lobbies
-        } else if (true) {
-            string lobbyInfo = args->lobbyMgr->PrintLobbyInfo(args->lobbies);
-            //send lobby info to player
-        }
-    }
-}
-
 struct game_thread_args {
-    vector<map<int, string>*> lobbies;
-    int lobbyID;
+    vector<struct Player*> gamePlayers;
 };
 
 void* gameThread(void* threadArgs) {
     struct game_thread_args *args = (game_thread_args*) threadArgs;
     
     vector<int> playerSD;
-    for (auto& pair : *args->lobbies.at(args->lobbyID)) {
-        playerSD.push_back((int)pair.first);
+    //Loop through all players in game and add their SD to the vector
+    for (struct Player* player : args->gamePlayers) {
+        playerSD.push_back(player->SD);
+        networkingAPI::sendMessage(player->SD, "STARTING GAME");
     }
 
     Deck d = createDeck();
@@ -253,31 +246,96 @@ void* gameThread(void* threadArgs) {
     return NULL;
 }
 
-struct tcp_thread_args {
-    LobbyManager* lobbyMgr;
-    vector<map<int, string>*> lobbies;
-};
-
-void* tcpGameManager(void* threadArgs) {
-    struct tcp_thread_args *args = (tcp_thread_args*) threadArgs;
+void* tcpGameManager(void*) {
 
     while (1) {
-        //Check if any lobbies have two players, if there is then start the game       
-        
-        for (int i = 0; i < args->lobbies.size(); i++) {
-            cout << args->lobbies[i]->size() << endl;
-            if (args->lobbies[i]->size() == 2) {
-                //create thread
+        //Go through each player and see if they want to join a lobby or create a new lobby
+        for (struct Player* player : ALL_PLAYERS) {
+            if (!player->inLobby) {
+                string msg = "CURRENT LOBBIES\n---------------\n";
+                for (struct Lobby* lobby : LOBBIES) {
+                    msg += "Lobby ID: " + to_string(lobby->LobbyID) + "\n";
+                    if (lobby->lobbyFull) {
+                        msg += "Lobby Full? YES\n";
+                    } else {
+                        msg += "Lobby Full? NO\n";
+                    }
+                    msg += "Players: ";
+                    for (struct Player* player : lobby->players) {
+                        msg += player->username + ", ";
+                    }
+                    msg = msg.substr(0, msg.length() - 1) + "\n";
+                }
+                msg += "\nRESPOND WITH LOBBY ID TO JOIN OR C TO CREATE A NEW LOBBY";
+                networkingAPI::sendMessage(player->SD, msg);
+
+                string response = networkingAPI::receiveMessage(player->SD);
+                //If player wants to create a new lobby
+                if (response == "C") {
+                    //Create new lobby
+                    struct Lobby* newLobby = new Lobby;
+                    newLobby->LobbyID = LOBBIES.size();
+                    newLobby->lobbyFull = false;
+                    newLobby->inGame = false;
+                    newLobby->players.push_back(player); //add them to newly created lobby
+                    //Update player to be in lobby
+                    player->inLobby = true;
+
+                    LOBBIES.push_back(newLobby);
+                    msg = "Created and added to lobby " + to_string(newLobby->LobbyID);
+                    networkingAPI::sendMessage(player->SD, msg);
+                //If the user responded with a number
+                } else {
+                    //Get the lobby with matching ID
+                    struct Lobby* lobby = LOBBIES[stoi(response)];
+                    //Add player to lobby
+                    lobby->players.push_back(player);
+                    //Check if lobby full
+                    if (lobby->players.size() == 2) {
+                        lobby->lobbyFull = true;
+                    }
+                    player->inLobby = true;
+
+                    msg = "Joined lobby " + to_string(lobby->LobbyID);
+                    networkingAPI::sendMessage(player->SD, msg);
+                }
+            }
+        }
+
+        //Go through each lobby 
+        for (struct Lobby* lobby : LOBBIES) {
+            if (lobby->lobbyFull && !lobby->inGame) {
+                //Start game
                 pthread_t game_thread;
                 struct game_thread_args *gameArgs = new game_thread_args;
-
-                gameArgs->lobbies = args->lobbies;
-                gameArgs->lobbyID = i;
-
+                vector<struct Player*> players = lobby->players;
+                gameArgs->gamePlayers = players;
                 pthread_create(&game_thread, NULL, gameThread, (void*) gameArgs);
+
+                lobby->inGame = true;
             }
         }
     }
+
+    // struct tcp_thread_args *args = (tcp_thread_args*) threadArgs;
+
+    // while (1) {
+    //     //Check if any lobbies have two players, if there is then start the game       
+    //     cout << args->lobbies[0]->size() << endl;
+    //     for (int i = 0; i < args->lobbies.size(); i++) {
+            
+    //         if (args->lobbies[i]->size() == 2) {
+    //             //create thread
+    //             pthread_t game_thread;
+    //             struct game_thread_args *gameArgs = new game_thread_args;
+
+    //             gameArgs->lobbies = args->lobbies;
+    //             gameArgs->lobbyID = i;
+
+    //             pthread_create(&game_thread, NULL, gameThread, (void*) gameArgs);
+    //         }
+    //     }
+    // }
 }
 
 
@@ -321,12 +379,12 @@ int main (int argc, char *argv[]) {
     sockaddr_in newsock;   // place to store parameters for the new connection
     socklen_t newsockSize = sizeof(newsock);
  
-    vector<int> playerList;
+    //vector<int> playerList;
 
-    vector<map<int, string>*> lobbies;
+    //vector<map<int, string>*> lobbies;
 
     //Initializes the lobby manager and creates 1 lobby
-    LobbyManager lobbyMgr(1, lobbies);
+    //LobbyManager lobbyMgr(1, lobbies);
    
     //Create struct to store arguments needed inside udp thread
     // pthread_t udp_thread;
@@ -336,13 +394,9 @@ int main (int argc, char *argv[]) {
     // //Creates thread to manage any udp messages
     // pthread_create(&udp_thread, NULL, udpMessageManager, (void*) udpArgs);
 
-    //Create struct to store arguments needed inside udp thread
+    
     pthread_t tcp_thread;
-    struct tcp_thread_args *tcpArgs = new tcp_thread_args;
-    //Store a reference to the lobby manager initialized above
-    tcpArgs->lobbyMgr = &lobbyMgr;
-    //Creates thread to manage any udp messages
-    pthread_create(&tcp_thread, NULL, tcpGameManager, (void*) tcpArgs);
+    pthread_create(&tcp_thread, NULL, tcpGameManager, NULL);
 
     while (1) {
 	    //Listens for incoming player connections
@@ -357,16 +411,15 @@ int main (int argc, char *argv[]) {
         read(newSd, buff, sizeof(buff));
         
         //Convert the char[] to a string
-        string request(buff);
-        
-        //Lobby is the before the #
-        int lobby = stoi(request.substr(0,request.find("#")));
-        
-        //Username is everything after #
-        string username = request.substr(request.find("#") + 1);
-        
-        //Add player to their desired lobby
-        lobbyMgr.AddPlayer(lobby, newSd, username, lobbies);
+        string username(buff);
+        cout << username << endl;
+        //Make pair w/ SD as one item, and their username
+        struct Player* newPlayer = new Player;
+        newPlayer->SD = newSd;
+        newPlayer->username = username;
+        newPlayer->inLobby = false;
+
+        ALL_PLAYERS.push_back(newPlayer);
     }
     return 0;
 
