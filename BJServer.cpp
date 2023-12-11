@@ -207,47 +207,9 @@ void playBlackjack(const Deck& deck, vector<int>& playerList)
     
 }
 
-/**
- * Struct to pass arguments through to the readClient function which is called
- * by the thread thus is limited arguments.
- */
-struct thread_args {
-    int sd;
-};
-
-/**
- * readClient(int sd)
- * 
- * readClient measures the time it takes for the server to read all messages
- * coming from the client. General flow of the function is as follows:
- *  1) Get current time - this is the start time
- *  2) Read incoming msg and track how many times read needed to be called
- *  3) Get current time - this is the end time
- *  4) Calculate elapsed time
- *  5) Sends message to client 
- *  6) Displays elapsed time
-*/
-// void* readClient(void* voidArgs) {
-    
-//     char databuf[1500];
-//     struct thread_args *args = (thread_args*) voidArgs;
-
-//     read(args->sd, databuf, 1500);
-//      cout << args->sd << endl;
-//     //Send count to client
-//     char temp[1500] = "welcome";
-//     strcpy(databuf, temp);
-//     write(args->sd, databuf, sizeof(databuf));
-   
-//     while (1) {
-//     }
-//     //close(args->sd);
-
-//     return NULL;
-// }
-
 struct udp_thread_args {
     LobbyManager* lobbyMgr;
+    vector<map<int, string>*> lobbies;
 };
 
 void* udpMessageManager(void* threadArgs) {
@@ -258,13 +220,62 @@ void* udpMessageManager(void* threadArgs) {
         
         //If client wants to create a lobby
         if (true) {
-            int lobbyID = args->lobbyMgr->CreateLobby();
+            int lobbyID = args->lobbyMgr->CreateLobby(args->lobbies);
             //send lobbyID to player
 
         //If client wants to display all lobbies
         } else if (true) {
-            string lobbyInfo = args->lobbyMgr->PrintLobbyInfo();
+            string lobbyInfo = args->lobbyMgr->PrintLobbyInfo(args->lobbies);
             //send lobby info to player
+        }
+    }
+}
+
+struct game_thread_args {
+    vector<map<int, string>*> lobbies;
+    int lobbyID;
+};
+
+void* gameThread(void* threadArgs) {
+    struct game_thread_args *args = (game_thread_args*) threadArgs;
+    
+    vector<int> playerSD;
+    for (auto& pair : *args->lobbies.at(args->lobbyID)) {
+        playerSD.push_back((int)pair.first);
+    }
+
+    Deck d = createDeck();
+    shuffleDeck(d);
+    shuffleDeck(d);
+
+    playBlackjack(d, playerSD);
+
+    return NULL;
+}
+
+struct tcp_thread_args {
+    LobbyManager* lobbyMgr;
+    vector<map<int, string>*> lobbies;
+};
+
+void* tcpGameManager(void* threadArgs) {
+    struct tcp_thread_args *args = (tcp_thread_args*) threadArgs;
+
+    while (1) {
+        //Check if any lobbies have two players, if there is then start the game       
+        
+        for (int i = 0; i < args->lobbies.size(); i++) {
+            cout << args->lobbies[i]->size() << endl;
+            if (args->lobbies[i]->size() == 2) {
+                //create thread
+                pthread_t game_thread;
+                struct game_thread_args *gameArgs = new game_thread_args;
+
+                gameArgs->lobbies = args->lobbies;
+                gameArgs->lobbyID = i;
+
+                pthread_create(&game_thread, NULL, gameThread, (void*) gameArgs);
+            }
         }
     }
 }
@@ -311,45 +322,51 @@ int main (int argc, char *argv[]) {
     socklen_t newsockSize = sizeof(newsock);
  
     vector<int> playerList;
+
+    vector<map<int, string>*> lobbies;
+
     //Initializes the lobby manager and creates 1 lobby
-    LobbyManager lobbyMgr(1);
+    LobbyManager lobbyMgr(1, lobbies);
+   
+    //Create struct to store arguments needed inside udp thread
+    // pthread_t udp_thread;
+    // struct udp_thread_args *udpArgs = new udp_thread_args;
+    // //Store a reference to the lobby manager initialized above
+    // udpArgs->lobbyMgr = &lobbyMgr;
+    // //Creates thread to manage any udp messages
+    // pthread_create(&udp_thread, NULL, udpMessageManager, (void*) udpArgs);
 
     //Create struct to store arguments needed inside udp thread
-    pthread_t udp_thread;
-    struct udp_thread_args *udpArgs = new udp_thread_args;
-
+    pthread_t tcp_thread;
+    struct tcp_thread_args *tcpArgs = new tcp_thread_args;
     //Store a reference to the lobby manager initialized above
-    udpArgs->lobbyMgr = &lobbyMgr;
-
+    tcpArgs->lobbyMgr = &lobbyMgr;
     //Creates thread to manage any udp messages
-    pthread_create(&udp_thread, NULL, udpMessageManager, (void*) udpArgs);
+    pthread_create(&tcp_thread, NULL, tcpGameManager, (void*) tcpArgs);
 
     while (1) {
 	    //Listens for incoming player connections
+        //An incoming TCP connection means that a player is intending to join a lobby
+        //The player is expected to know which lobby they are joining
         int newSd = accept(serverSd, (sockaddr *)&newsock, &newsockSize);  // grabs the new connection and assigns it a temporary socket
         
-        //Lobby management stuff
-        //Listens for incoming UDP messages to list, create, or join lobbies
-        if (true) {
-            
-        }
-        //Creates thread and thread_arg struct
-        //pthread_t new_thread;
-        //struct thread_args *args = new thread_args;
-        //args->sd = newSd;
+        char buff[1024]; //initialize it to 1024 bytes
 
-        // USERS_CONNECTED++;
-        // //pthread_create(&new_thread, NULL, readClient, (void*) args);
+        //Read player's hello message which should consist of their desired lobby number and username
+        //Message will be formatted lobbyNum#username
+        read(newSd, buff, sizeof(buff));
         
-        // //A single lobby -- would need to be 2D eventually
+        //Convert the char[] to a string
+        string request(buff);
         
-        // playerList.push_back(newSd); //add player to lobby
-        // if (USERS_CONNECTED == 2){
-        //     Deck d = createDeck();
-        //     shuffleDeck(d);
-        //     shuffleDeck(d);
-        //     playBlackjack(d, playerList);
-        // }
+        //Lobby is the before the #
+        int lobby = stoi(request.substr(0,request.find("#")));
+        
+        //Username is everything after #
+        string username = request.substr(request.find("#") + 1);
+        
+        //Add player to their desired lobby
+        lobbyMgr.AddPlayer(lobby, newSd, username, lobbies);
     }
     return 0;
 

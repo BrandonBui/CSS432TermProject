@@ -71,8 +71,8 @@ int main(int argc, char *argv[]) {
 
     //Assigns CL args to vars
     int server_port = atoi(argv[1]);
-    int bufsize = 1500;
     char * server_name = argv[2];
+    char * lobbyAndName = argv[3];
 
     //Server IP
     struct hostent* host = gethostbyname(server_name);
@@ -93,7 +93,11 @@ int main(int argc, char *argv[]) {
     int connectStatus = connect(clientSd, (sockaddr*)&sendSockAddr, sizeof(sendSockAddr));
     if (connectStatus < 0) {
         cerr << "Failed to connect to the server" << endl;
+    } else {
+        cout << "CONNECTED TO SERVER" << endl;
     }
+
+    write(clientSd, lobbyAndName, sizeof(lobbyAndName));
 
     // char databuf[1500] = "Hello";
 
@@ -103,6 +107,8 @@ int main(int argc, char *argv[]) {
     // cout << databuf << endl;
 
     playBlackJack(clientSd);
+
+
 
     close(clientSd);
 }

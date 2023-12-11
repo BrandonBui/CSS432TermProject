@@ -1,6 +1,6 @@
 #include "lobby.h"
 
-LobbyManager::LobbyManager(int lobbyCountInput)
+LobbyManager::LobbyManager(int lobbyCountInput, vector<map<int, string>*> &lobbies)
 {
     lobbyCount = lobbyCountInput;
     for (int i = 0; i < lobbyCount; i++)
@@ -11,16 +11,16 @@ LobbyManager::LobbyManager(int lobbyCountInput)
     //Can remove - only here for testing purposes
     cout << "INITIALIZED!" << endl;
 }
-LobbyManager::~LobbyManager()
-{
-    for (int i = 0; i < lobbyCount; i++)
-    {
-        delete(lobbies[i]);
-    }
-}
+// LobbyManager::~LobbyManager()
+// {
+//     for (int i = 0; i < lobbyCount; i++)
+//     {
+//         delete(lobbies[i]);
+//     }
+// }
 
 //
-void LobbyManager::AddPlayer(int lobbyNum, int sd, string username)
+void LobbyManager::AddPlayer(int lobbyNum, int sd, string username, vector<map<int, string>*> &lobbies)
 {
     if (lobbyNum <= lobbyCount - 1)
     {
@@ -29,15 +29,16 @@ void LobbyManager::AddPlayer(int lobbyNum, int sd, string username)
     }
 }
 
-void LobbyManager::RemovePlayer(int lobbyNum, int sd)
+void LobbyManager::RemovePlayer(int lobbyNum, int sd, vector<map<int, string>*> &lobbies)
 {
     lobbies[lobbyNum] -> erase(sd);
 }
 
-int LobbyManager::CreateLobby()
+int LobbyManager::CreateLobby(vector<map<int, string>*> &lobbies)
 {
     lobbies.push_back(new map<int, string>);
     lobbyCount++;
+
     return lobbyCount - 1;
 }
 
@@ -46,17 +47,18 @@ void LobbyManager::ReadyPlayer(int sd)
     isReady[sd] = true;
 }
 
-int LobbyManager::GetLobbyNum(int sd)
+int LobbyManager::GetLobbyNum(int sd, vector<map<int, string>*> &lobbies)
 {
     int output;
     for (int i = 0; i <= lobbyCount - 1; i++)
     {
         if (lobbies[i]->find(sd) != lobbies[i]->end()) output = i;
     }
+
     return output;
 }
 
-string LobbyManager::PrintLobbyInfo()
+string LobbyManager::PrintLobbyInfo(vector<map<int, string>*> &lobbies)
 {
     string output = "";
 
@@ -72,5 +74,16 @@ string LobbyManager::PrintLobbyInfo()
             output += "\n";
         }
     }
+
     return output;
+}
+
+bool LobbyManager::allPlayersReady(int lobbyNum, vector<map<int, string>*> &lobbies)
+{
+    for (auto i = lobbies[lobbyNum]->begin(); i != lobbies[lobbyNum]->end(); i++)
+    {
+        if (!isReady[i->first]) return false;
+    }
+;
+    return true;
 }
